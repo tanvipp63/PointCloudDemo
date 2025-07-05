@@ -1,3 +1,7 @@
 #VSCode settings
 .vscode
 Miniconda3-latest-Linux-x86_64.sh
+templates/jsconfig.json
+templates/node_modules/
+templates/package-lock.json
+templates/package.json
