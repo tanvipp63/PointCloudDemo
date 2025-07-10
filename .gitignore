@@ -5,3 +5,5 @@ templates/jsconfig.json
 templates/node_modules/
 templates/package-lock.json
 templates/package.json
+./backend/env_backend
+./backend/renders

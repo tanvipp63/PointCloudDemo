@@ -254,7 +254,7 @@ if __name__ == "__main__":
     #Render snapshots with open3d
     pcd = createPlyColmap(colmap_points)
     newposes = interpolate_poses(poses)
-    render_folder = './render'
+    render_folder = './renders'
     custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
 
     #Render video
