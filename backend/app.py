@@ -3,7 +3,7 @@ import argparse
 import subprocess
 import open3d as o3d
 from tqdm import tqdm
-from scipy import Slerp
+from scipy.spatial.transform import Slerp, Rotation
 import numpy as np
 from utils.read_write_colmap_model import *
 from vedo import show, Line, Arrow, Axes, Sphere
@@ -62,15 +62,6 @@ def visualise_debugger(newposes, oldposes):
     apexes = [pose[:3, 3] for pose in newposes]
     old_apexes = [pose[:3, 3] for pose in oldposes]
 
-    new_apexes = []
-    for pose in newposes:
-        for i in range(len(oldposes)):
-            if (pose == oldposes[i]).all():
-                break
-            if i == (len(oldposes)-1):
-                new_apexes.append(oldposes[i])
-
-
     camera_axes = []
     for pose in newposes:
         origin = pose[:3, 3]
@@ -86,10 +77,10 @@ def visualise_debugger(newposes, oldposes):
         ])
 
     # Optionally show the camera positions as small spheres
-    camera_apexes = [Sphere(pos, r=0.01, c='yellow') for pos in new_apexes]
+    camera_apexes = [Sphere(pos, r=0.01, c='blue') for pos in apexes]
     camera_original_apexes = [Sphere(pos, r=0.01, c='yellow') for pos in old_apexes]
 
-    show(camera_original_apexes, camera_apexes, camera_axes)
+    show(camera_apexes, camera_original_apexes, camera_axes)
 
 def custom_draw_geometry_with_camera_trajectory(pcd, poses, width, height, fx, fy, cx, cy, background_color, render_folder):
     # reset state
@@ -127,7 +118,7 @@ def custom_draw_geometry_with_camera_trajectory(pcd, poses, width, height, fx, f
             return False
 
     vis = o3d.visualization.Visualizer()
-    vis.create_window(visible=False)
+    vis.create_window(visible=True)
     vis.add_geometry(pcd)
     vis.get_render_option().background_color = background_color
     vis.register_animation_callback(move_forward)
@@ -151,11 +142,11 @@ def squad(q0, q1, q2, q3, t=0.5):
     s1 = intermediate(q0, q1, q2)
     s2 = intermediate(q1, q2, q3)
     #SLERP
-    slerp_q1q2 = Slerp([0,1], [q1, q2])
-    slerp_ab   = Slerp([0,1],  [s1, s2])
+    slerp_q1q2 = Slerp([0,1], Rotation.from_quat([q1,q2], scalar_first=True))(t)
+    slerp_ab   = Slerp([0,1],  Rotation.from_quat([s1,s2], scalar_first=True))(t)
 
     # final SLERP interpolation
-    return Slerp(slerp_q1q2, slerp_ab, [0,1])(2*t*(1-t))
+    return Slerp([0,1], Rotation([slerp_q1q2, slerp_ab]))(2*t*(1-t)).as_quat()
 
 def is_traj_gap(t1, t2, threshold=0.5):
     """Checks if there is a gap that requires interpolation. Assumes metres"""
@@ -166,42 +157,45 @@ def is_traj_gap(t1, t2, threshold=0.5):
 def interpolation_alg(poses):
     traj_gap = False
     tvecs = [pose[:3, 3] for pose in poses]
-    qvecs = [rotmat2qvec(pose[:3,:3] for pose in poses)]
+    qvecs = [rotmat2qvec(pose[:3,:3]) for pose in poses]
     assert len(tvecs) == len(qvecs)
+    print(len(tvecs))
 
     newtvecs=[tvecs[0]]
     newqvecs=[qvecs[0]]
 
     for i in range(len(poses)):
         if len(tvecs[i:i+4]) < 4:
+            newtvecs.extend(tvecs[i+1:])
+            newqvecs.extend(qvecs[i+1:])
             break
         t0, t1, t2, t3 = tvecs[i:i+4]
         q0, q1, q2, q3 = qvecs[i:i+4]
+        newtvecs.append(t1)
+        newqvecs.append(q1)
         if is_traj_gap(t1, t2):
             traj_gap = True
-            newtvec = catmul_romm(t1, t2)
-            newqvec = squad(q1,q2)
+            newtvec = catmul_romm(t0, t1, t2, t3)
+            newqvec = squad(q0,q1,q2,q3)
 
-            newtvecs.append(t1)
             newtvecs.append(newtvec)
-            newqvecs.append(q1)
             newqvecs.append(newqvec)
     
     assert len(newtvecs) == len(newqvecs)
 
     #return new poses
     newposes = []
-    for i in len(newtvecs):
-        c2w = (newtvecs[i], newqvecs[i])
+    for i in range(len(newtvecs)):
+        c2w = tq2rotmat(newtvecs[i], newqvecs[i])
         newposes.append(c2w)
-    
     return newposes, traj_gap
 
-def interpolate_poses(poses):
+def interpolate_poses(newposes):
     traj_gap = True
     while traj_gap:
-        newposes, traj_gap = interpolation_alg(poses)
-    
+        newposes, traj_gap = interpolation_alg(newposes)
+
+    print(len(newposes))    
     return newposes
 
 
@@ -220,14 +214,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     nseconds = int(args.nseconds)
     colmap_dir = args.colmap_dir
-    background_colour = args.background_colour
+    background_colour = get_background_colour(args.background_colour)
     render_image = args.render_image
 
     #Colmap paths
     cameras_txt = f"{colmap_dir}/cameras.txt"
     images_txt = f"{colmap_dir}/images.txt"
-    points3d_txt = f"{colmap_dir}/points3d.txt"
+    points3d_txt = f"{colmap_dir}/points3D.txt"
     #Load colmap
+    print("Loading colmap info")
     colmap_cameras = read_cameras_text(cameras_txt)
     colmap_images = read_images_text(images_txt)
     colmap_images = dict(sorted(colmap_images.items(), key = lambda kv: int(kv[1].name.split('.')[0].split('_')[1]))) #sort by timestamps
@@ -252,10 +247,14 @@ if __name__ == "__main__":
         poses.append(pose)
     
     #Render snapshots with open3d
+    print("Interpolating poses")
     pcd = createPlyColmap(colmap_points)
     newposes = interpolate_poses(poses)
     render_folder = './renders'
-    custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
+    # custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
+
+    #Debug visualiser
+    visualise_debugger(newposes, poses)
 
     #Render video
     base = os.path.abspath(render_folder)
