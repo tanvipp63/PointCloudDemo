@@ -7,3 +7,5 @@ templates/package-lock.json
 templates/package.json
 env_backend
 renders
+colmap_sample
+__pycache__

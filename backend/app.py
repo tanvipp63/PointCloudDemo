@@ -143,10 +143,12 @@ def squad(q0, q1, q2, q3, t=0.5):
     s2 = intermediate(q1, q2, q3)
     #SLERP
     slerp_q1q2 = Slerp([0,1], Rotation.from_quat([q1,q2], scalar_first=True))(t)
-    slerp_ab   = Slerp([0,1],  Rotation.from_quat([s1,s2], scalar_first=True))(t)
+    slerp_s1s2   = Slerp([0,1],  Rotation.from_quat([s1,s2], scalar_first=True))(t)
+    slerp_q1q2 = slerp_q1q2.as_quat(scalar_first=True)
+    slerp_s1s2 = slerp_s1s2.as_quat(scalar_first=True)
 
     # final SLERP interpolation
-    return Slerp([0,1], Rotation([slerp_q1q2, slerp_ab]))(2*t*(1-t)).as_quat()
+    return Slerp([0,1], Rotation.from_quat([slerp_q1q2, slerp_s1s2], scalar_first=True))(2*t*(1-t)).as_quat(scalar_first=True)
 
 def is_traj_gap(t1, t2, threshold=0.5):
     """Checks if there is a gap that requires interpolation. Assumes metres"""
@@ -251,10 +253,10 @@ if __name__ == "__main__":
     pcd = createPlyColmap(colmap_points)
     newposes = interpolate_poses(poses)
     render_folder = './renders'
-    # custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
+    custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
 
     #Debug visualiser
-    visualise_debugger(newposes, poses)
+    # visualise_debugger(newposes, poses)
 
     #Render video
     base = os.path.abspath(render_folder)
