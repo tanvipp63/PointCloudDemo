@@ -72,3 +72,38 @@ controls.keys = {
 	RIGHT: 'ArrowRight', // right arrow
 	BOTTOM: 'ArrowDown' // down arrow
 }
+
+/* WASD */
+const moveDist = 0.1; // tune speed
+
+window.addEventListener('keydown', (e) => {
+  const code = e.keyCode || e.which;
+  if (code === 87 || code === 38) { // W
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir).multiplyScalar(moveDist);
+    camera.position.add(dir);
+    controls.target.add(dir);
+    controls.update();
+  } else if (code === 83 || code === 40) { // S
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir).multiplyScalar(-moveDist);
+    camera.position.add(dir);
+    controls.target.add(dir);
+    controls.update();
+  }
+  else if (code === 65 || code === 37) { // A
+    const right = new THREE.Vector3();
+    camera.getWorldDirection(right);
+    right.cross(camera.up).normalize().multiplyScalar(-moveDist); 
+    camera.position.add(right);
+    controls.target.add(right);
+    controls.update();
+  } else if (code === 68 || code === 39) { // D
+    const right = new THREE.Vector3();
+    camera.getWorldDirection(right);
+    right.cross(camera.up).normalize().multiplyScalar(moveDist); 
+    camera.position.add(right);
+    controls.target.add(right);
+    controls.update();
+  }
+});
