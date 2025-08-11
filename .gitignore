@@ -9,4 +9,4 @@ env_backend
 renders
 colmap_sample
 __pycache__
-node_modules
+node_modules/
