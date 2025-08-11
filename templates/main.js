@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setAnimationLoop( animate );
-document.getElementById("canvas").appendChild( renderer.domElement );
+document.body.appendChild( renderer.domElement );
 
 /* Set up scene, camera and renderer */
 const scene = new THREE.Scene();
