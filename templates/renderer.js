@@ -27,7 +27,6 @@ controls.listenToKeyEvents( window );
 /*Ply loading from backend*/
 const loader = new PLYLoader();
 loader.load('../outputs/pointcloud.ply', (geometry) => {
-  // Some PLYs provide colors in a "color" attribute — PointsMaterial can use them
   const hasColors = !!geometry.getAttribute('color');
   if (!hasColors) {
     // Optionally set a fallback color
@@ -36,7 +35,6 @@ loader.load('../outputs/pointcloud.ply', (geometry) => {
     );
   }
 
-  // Use THREE.Points for point clouds (fast). If PLY is a mesh, use THREE.Mesh + material
   const material = new THREE.PointsMaterial({
     size: 0.01,
     vertexColors: true,
@@ -46,7 +44,6 @@ loader.load('../outputs/pointcloud.ply', (geometry) => {
   const points = new THREE.Points(geometry, material);
   scene.add(points);
 
-  // auto-fit camera to point cloud bounds
   geometry.computeBoundingBox();
   const bb = geometry.boundingBox;
   const center = new THREE.Vector3();
@@ -58,11 +55,7 @@ loader.load('../outputs/pointcloud.ply', (geometry) => {
 
 /*Animation function */
 function animate() {
-	// cube.rotation.x += 0.01;
-	// cube.rotation.y += 0.01;
-
 	renderer.render( scene, camera );
-
 }
 
 /*Controls*/
@@ -123,7 +116,6 @@ linkButton.addEventListener('click', async () => {
     const result = await window.electronAPI.runPython(folder);
     logArea.innerText += '\nBackend finished successfully:\n' + result;
 
-    // TODO: Load generated .ply from /outputs folder and visualize with Three.js here
   } catch (err) {
     logArea.innerText += '\nError running backend:\n' + err.message;
   }
