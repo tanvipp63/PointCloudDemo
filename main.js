@@ -28,7 +28,10 @@ ipcMain.handle('select-folder', async () => {
 
 ipcMain.handle('run-python', (event, folderPath) => {
   return new Promise((resolve, reject) => {
-    const pythonPath = '/backend/env_backend/bin/python';
+    const os = require('os');
+    const pythonPath = os.platform() === 'win32' ?
+      path.join(__dirname, 'backend', 'env_backend', 'Scripts', 'python.exe') :
+      path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
     const scriptPath = path.join(__dirname, 'backend', 'app.py');
 
     // Spawn Python process with folder path as argument

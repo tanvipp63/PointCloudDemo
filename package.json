@@ -2,7 +2,7 @@
   "name": "pointclouddemorestored",
   "version": "1.0.0",
   "description": "Web application that takes a video or image and visualises the point cloud in real time. Useful for demo applications.",
-  "main": "./templates/main.js",
+  "main": "./main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron ."
