@@ -3,3 +3,6 @@ Desktop app that takes a video or image and visualises the point cloud in real t
 
 ## Instructions
 Run the app using 'npm start'
+Running backend by itself: 
+source backend/env_backend/bin/activate
+python backend/app.py --colmap_dir /home/tparu2/PointCloudDemoRestored/colmap_sample

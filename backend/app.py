@@ -76,7 +76,6 @@ def visualise_debugger(newposes, oldposes):
             Arrow(origin, origin + z_axis, c='b'),
         ])
 
-    # Optionally show the camera positions as small spheres
     camera_apexes = [Sphere(pos, r=0.01, c='blue') for pos in apexes]
     camera_original_apexes = [Sphere(pos, r=0.01, c='yellow') for pos in old_apexes]
 
@@ -145,9 +144,12 @@ def squad(q0, q1, q2, q3, t=0.5):
     q3 = normalise_quaternion(q3)
 
     def intermediate(q_im1, q_i, q_ip1): #quat operations produce w x y z quaternions
+        q_im1 = normalise_quaternion(q_im1)
+        q_i = normalise_quaternion(q_i)
+        q_ip1 = normalise_quaternion(q_ip1)
         q_i_inv = qinverse(q_i)
-        term = qexp(-0.25*(qlog(qmult(q_ip1, q_i)) + qlog(qmult(q_im1, q_i_inv))))
-        return qmult(q_i, term)
+        term = qexp(-0.25*(qlog(qmult(q_ip1, q_i_inv)) + qlog(qmult(q_im1, q_i_inv))))
+        return normalise_quaternion(qmult(q_i, term))
     #Helper quaternions
     s2 = intermediate(q0, q1, q2)
     s3 = intermediate(q1, q2, q3)
@@ -164,41 +166,21 @@ def squad(q0, q1, q2, q3, t=0.5):
     q2_scipy = to_scipy_format(q2)
     s2_scipy = to_scipy_format(s2)
     s3_scipy = to_scipy_format(s3)
-    
+    #Ensure shortest paths before SLERP
+    q1_scipy = ensure_shortest_path(q2_scipy, q1_scipy)
+    s2_scipy = ensure_shortest_path(s3_scipy, s2_scipy)
+
+
     # First level SLERPs
-    slerp1 = Slerp([0, 1], Rotation.from_quat([q1_scipy, q2_scipy]))(t)
-    slerp2 = Slerp([0, 1], Rotation.from_quat([s2_scipy, s3_scipy]))(t)
+    slerp1_q = normalise_quaternion(Slerp([0, 1], Rotation.from_quat([q1_scipy, q2_scipy]))(t).as_quat())
+    slerp2_q = normalise_quaternion(Slerp([0, 1], Rotation.from_quat([s2_scipy, s3_scipy]))(t).as_quat())
+    slerp1_q = ensure_shortest_path(slerp2_q, slerp1_q)
     
     # Final SLERP with SQUAD weighting
-    final_slerp = Slerp([0, 1], Rotation.from_quat([slerp1.as_quat(), slerp2.as_quat()]))(2*t*(1-t))
+    final_slerp = normalise_quaternion(Slerp([0, 1], Rotation.from_quat([slerp1_q, slerp2_q]))(2*t*(1-t)).as_quat())
     
     # Convert back to [w, x, y, z] format
-    result = final_slerp.as_quat()
-    return from_scipy_format(result)
-
-    # Scipy implementation
-    # slerp_q1q2 = Slerp([0,1], Rotation.from_quat([q1,q2], scalar_first=True))(t)
-    # slerp_s2s3   = Slerp([0,1],  Rotation.from_quat([s2,s3], scalar_first=True))(t)
-    # slerp_q1q2 = rotmat2qvec(slerp_q1q2.as_matrix())
-    # slerp_s2s3 = rotmat2qvec(slerp_s2s3.as_matrix())
-
-    # #My implementation
-    # # q1_np = np.quaternion(q1[0], q1[1], q1[2], q1[3])
-    # # q2_np = np.quaternion(q2[0], q2[1], q2[2], q2[3])
-    # # s2_np = np.quaternion(s2[0], s2[1], s2[2], s2[3])
-    # # s3_np = np.quaternion(s3[0], s3[1], s3[2], s3[3])
-    # # slerp_q1q2 = quaternion.slerp_evaluate(q1_np,q2_np,0.5)
-    # # slerp_s2s3 = quaternion.slerp_evaluate(s2_np,s3_np,0.5)
-    # # print(f"Slerp q1q2: {slerp_q1q2}")
-
-    # # final SLERP interpolation
-    # return Slerp([0,1], Rotation.from_quat([slerp_q1q2, slerp_s2s3], scalar_first=True))(2*t*(1-t)).as_quat(scalar_first=True)
-    # # return slerp(slerp_q1q2, slerp_s2s3, 2*t*(1-t))
-    # # return quaternion.slerp_evaluate(slerp_q1q2, slerp_s2s3, 2*t*(1-t))
-    
-    # # from quaternionic import squad as sq
-    # # newq = np.array(sq(np.array([q0, q1, q2, q3]), np.array([0.0, 1.0, 2.0, 3.0]), np.array([1.5]))[0])
-    # # return newq
+    return from_scipy_format(final_slerp)
 
 def is_traj_gap(t1, t2, threshold=0.5):
     """Checks if there is a gap that requires interpolation. Assumes metres"""
@@ -309,7 +291,7 @@ if __name__ == "__main__":
     custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
 
     #Debug visualiser
-    # visualise_debugger(newposes, poses)
+    visualise_debugger(newposes, poses)
 
     #Render video
     base = os.path.abspath(render_folder)
@@ -324,15 +306,12 @@ if __name__ == "__main__":
         cmd = f"ffmpeg -framerate {fps} -i {render_folder}/image/%05d.png -pix_fmt yuv420p ./outputs/rgb.mp4"
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
-        # stdout will contain key=value lines; stderr contains only real errors
+        # parse to stdout
         for line in proc.stdout:
             line = line.strip()
-            # parse progress key=value
             if line:
-                # Example lines: frame=123, out_time_ms=12345, progress=continue
                 if '=' in line:
                     k, v = line.split('=', 1)
-                    # Optionally reformat and send to main process stdout
                     print(f'FFMPEG:{k}={v}', flush=True)
                 else:
                     print(line, flush=True)
