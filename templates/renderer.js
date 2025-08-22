@@ -2,10 +2,11 @@ import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js?module';
 import { PLYLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/PLYLoader.js?module';
 
+const container = document.getElementById('canvas-container');
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.setAnimationLoop( animate );
-document.body.appendChild( renderer.domElement );
+container.appendChild( renderer.domElement );
 
 /* Set up scene, camera and renderer */
 const scene = new THREE.Scene();
@@ -149,3 +150,17 @@ window.electronAPI.onPythonError((data) => {
   consoleDiv.appendChild(newLine);
   consoleDiv.scrollTop = consoleDiv.scrollHeight; // auto scroll down
 });
+
+function onWindowResize() {
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+
+  renderer.setSize(width, height, false); // false avoids changing canvas style
+  renderer.setPixelRatio(window.devicePixelRatio);
+}
+
+onWindowResize();
+window.addEventListener('resize', onWindowResize);
