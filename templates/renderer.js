@@ -102,29 +102,50 @@ window.addEventListener('keydown', (e) => {
 });
 
 const linkButton = document.getElementById('link-button');
-const logArea = document.getElementById('log');
+const consoleDiv = document.getElementById('console');
 
 linkButton.addEventListener('click', async () => {
   const folder = await window.electronAPI.selectFolder();
   if (!folder) {
-    logArea.innerText = 'Folder selection cancelled.';
+    const newLine = document.createElement('div');
+    newLine.textContent = "Folder not found!\n";
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
     return;
   }
-  logArea.innerText = `Selected folder: ${folder}\nRunning backend...`;
+  const newLine = document.createElement('div');
+  newLine.textContent = `Selected folder: ${folder}. Running backend...\n`;
+  consoleDiv.appendChild(newLine);
+  consoleDiv.scrollTop = consoleDiv.scrollHeight;
 
   try {
     const result = await window.electronAPI.runPython(folder);
-    logArea.innerText += '\nBackend finished successfully:\n' + result;
+    const newLine = document.createElement('div');
+    newLine.textContent = `\nBackend finished successfully:\n + ${result}`;
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
 
   } catch (err) {
-    logArea.innerText += '\nError running backend:\n' + err.message;
+    const result = await window.electronAPI.runPython(folder);
+    const newLine = document.createElement('div');
+    newLine.textContent = `\nError running backend:\n' + ${err.message}`;
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
   }
 });
 
+
 window.electronAPI.onPythonLog((data) => {
-  logArea.innerText += data;
+  const newLine = document.createElement('div');
+  newLine.textContent = data;
+  consoleDiv.appendChild(newLine);
+  consoleDiv.scrollTop = consoleDiv.scrollHeight; // auto scroll down
 });
 
 window.electronAPI.onPythonError((data) => {
-  logArea.innerText += '\nERROR: ' + data;
+  const newLine = document.createElement('div');
+  newLine.textContent = 'ERROR: ' + data;
+  newLine.style.color = 'red';
+  consoleDiv.appendChild(newLine);
+  consoleDiv.scrollTop = consoleDiv.scrollHeight; // auto scroll down
 });

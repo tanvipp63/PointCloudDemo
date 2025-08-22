@@ -1,4 +1,4 @@
-import os, math
+import os, math, sys
 import argparse
 import subprocess
 import open3d as o3d
@@ -91,7 +91,7 @@ def custom_draw_geometry_with_camera_trajectory(pcd, poses, width, height, fx, f
     os.makedirs(f"{render_folder}/image/", exist_ok=True)
     os.makedirs(f"{render_folder}/depth/", exist_ok=True)
 
-    pbar = tqdm(total=len(poses), desc="Creating frames...", unit="frame")
+    pbar = tqdm(total=len(poses), desc="Creating frames...", unit="frame", file=sys.stdout)
 
     def move_forward(vis):
         glb = custom_draw_geometry_with_camera_trajectory
@@ -118,7 +118,7 @@ def custom_draw_geometry_with_camera_trajectory(pcd, poses, width, height, fx, f
             return False
 
     vis = o3d.visualization.Visualizer()
-    vis.create_window(visible=True)
+    vis.create_window(visible=False)
     vis.add_geometry(pcd)
     vis.get_render_option().background_color = background_color
     vis.register_animation_callback(move_forward)
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     #Render output
     parser.add_argument("--nseconds", default="60", help="Length of video (s)")
     parser.add_argument("--background_colour", default="black", help="Background colour for video")
-    parser.add_argument("--render_image", action="store_true", help="Render rgb video")
+    parser.add_argument("--render_rgb", action="store_true", help="Render rgb video")
     #TODO future add option to get depth video from ffmpeg
     #Input
     parser.add_argument("--colmap_dir", help="Directory to colmap text files")
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     nseconds = int(args.nseconds)
     colmap_dir = args.colmap_dir
     background_colour = get_background_colour(args.background_colour)
-    render_image = args.render_image
+    render_rgb = args.render_rgb
 
     #Colmap paths
     cameras_txt = f"{colmap_dir}/cameras.txt"
@@ -317,12 +317,32 @@ if __name__ == "__main__":
     depth_seq = os.path.join(base, "depth", "%05d.png")
     os.makedirs("./outputs", exist_ok=True)
     fps = int(len(newposes)/nseconds)
-    if render_image:
+    if render_rgb:
         print("Rendering video")
         if os.path.exists("./outputs/rgb.mp4"):
             os.remove("./outputs/rgb.mp4")
         cmd = f"ffmpeg -framerate {fps} -i {render_folder}/image/%05d.png -pix_fmt yuv420p ./outputs/rgb.mp4"
-        subprocess.run(cmd, shell=True)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+
+        # stdout will contain key=value lines; stderr contains only real errors
+        for line in proc.stdout:
+            line = line.strip()
+            # parse progress key=value
+            if line:
+                # Example lines: frame=123, out_time_ms=12345, progress=continue
+                if '=' in line:
+                    k, v = line.split('=', 1)
+                    # Optionally reformat and send to main process stdout
+                    print(f'FFMPEG:{k}={v}', flush=True)
+                else:
+                    print(line, flush=True)
+
+        # capture final stderr if any
+        err = proc.stderr.read()
+        if err:
+            print('FFMPEG_ERR:' + err, flush=True)
+
+        proc.wait()
 
     # ######
     # qvecs = [rotmat2qvec(pose[:3,:3]) for pose in poses]

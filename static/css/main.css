@@ -10,3 +10,19 @@ button {
     left: 0px;
     z-index: 10;
 }
+
+#console{
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 300px;
+    height: 200px;
+    background: rgba(244, 244, 244, 0.8);
+    color: #0f0;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 10px;
+    overflow-y: auto;
+    border-radius: 5px;
+    z-index: 1000;    
+}

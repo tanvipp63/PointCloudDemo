@@ -34,15 +34,13 @@ ipcMain.handle('run-python', (event, folderPath) => {
       path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
     const scriptPath = path.join(__dirname, 'backend', 'app.py');
 
-    // Spawn Python process with folder path as argument
-    const pyProcess = spawn(pythonPath, [scriptPath, folderPath]);
+    const pyProcess = spawn(pythonPath, [scriptPath, '--colmap_dir', folderPath, '--render_rgb']);
 
     let output = '';
     let error = '';
 
     pyProcess.stdout.on('data', (data) => {
       output += data.toString();
-      // Optionally send live logs to renderer
       mainWindow.webContents.send('python-log', data.toString());
     });
 
