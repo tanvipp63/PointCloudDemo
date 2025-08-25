@@ -8,7 +8,10 @@ source backend/env_backend/bin/activate
 python backend/app.py --colmap_dir /home/tparu2/PointCloudDemoRestored/colmap_sample
 
 ## To do
-Download button for video? + Option to select background colour of video (black, white)
-Link to ply file
-Render video button
-Show video & download to Downloads folder
+Download for video
+
+## Future Dev
+Download a ply file to use instead of points3d.txt from COLMAP
+Select camera poses to add in the app before interpolation as substitute for images.txt
+Choose background colour for rendering the video, changing the three.js display and the input into the frame generation
+Video player
