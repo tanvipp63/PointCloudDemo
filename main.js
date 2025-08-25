@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { spawn } = require('child_process');
 
 let mainWindow;
@@ -90,4 +91,35 @@ ipcMain.handle('run-rendervideo', (event) => {
       }
     });
   });
+});
+
+ipcMain.handle('save-video', async () => {
+  try {
+    const srcPath = path.join(__dirname, 'outputs', 'rgb.mp4');
+
+    // ensure the source file exists
+    if (!fs.existsSync(srcPath)) {
+      throw new Error('No video found to save (outputs/rgb.mp4 not found). Render Video first');
+    }
+
+    // propose default filename in user's Downloads folder
+    const defaultName = 'pointclouddemo_rgb.mp4';
+    const defaultPath = path.join(app.getPath('downloads'), defaultName);
+
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Save rendered video',
+      defaultPath,
+      filters: [{ name: 'MP4 video', extensions: ['mp4'] }],
+    });
+
+    if (canceled || !filePath) return null;
+
+    await fs.promises.copyFile(srcPath, filePath);
+
+    // shell.showItemInFolder(filePath);
+
+    return filePath;
+  } catch (err) {
+    throw err;
+  }
 });

@@ -159,6 +159,38 @@ renderButton.addEventListener('click', async () => {
   }
 });
 
+const downloadButton = document.getElementById('download-button');
+
+downloadButton.addEventListener('click', async () => {
+  downloadButton.disabled = true;
+  const newLine = document.createElement('div');
+  newLine.textContent = `\nOpening donwload dialogue...\n`;
+  consoleDiv.appendChild(newLine);
+  consoleDiv.scrollTop = consoleDiv.scrollHeight;
+
+  try {
+    const savedPath = await window.electronAPI.saveVideo();
+    if (!savedPath) {
+      const newLine = document.createElement('div');
+      newLine.textContent = '\nSave cancelled by user.\n';
+      consoleDiv.appendChild(newLine);
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    } else {
+      const newLine = document.createElement('div');
+      newLine.textContent = `\nVideo saved to: ${savedPath}\n`;
+      consoleDiv.appendChild(newLine);
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;      
+    }
+  } catch (err) {
+    const newLine = document.createElement('div');
+    newLine.textContent = `\nError saving video: ' + ${err.message}\n`;
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;       
+  } finally {
+    downloadButton.disabled = false;
+  }
+});
+
 
 window.electronAPI.onPythonLog((data) => {
   const newLine = document.createElement('div');
