@@ -120,16 +120,40 @@ linkButton.addEventListener('click', async () => {
   consoleDiv.scrollTop = consoleDiv.scrollHeight;
 
   try {
-    const result = await window.electronAPI.runPython(folder);
+    const result = await window.electronAPI.runPoseInterp(folder);
     const newLine = document.createElement('div');
-    newLine.textContent = `\nBackend finished successfully:\n + ${result}`;
+    newLine.textContent = `\nBackend finished successfully\n`;
     consoleDiv.appendChild(newLine);
     consoleDiv.scrollTop = consoleDiv.scrollHeight;
 
   } catch (err) {
-    const result = await window.electronAPI.runPython(folder);
+    const result = await window.electronAPI.runPoseInterp(folder);
     const newLine = document.createElement('div');
     newLine.textContent = `\nError running backend:\n' + ${err.message}`;
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+  }
+});
+
+const renderButton = document.getElementById('render-button');
+
+renderButton.addEventListener('click', async () => {
+  const newLine = document.createElement('div');
+  newLine.textContent = `Rendering video...\n`;
+  consoleDiv.appendChild(newLine);
+  consoleDiv.scrollTop = consoleDiv.scrollHeight;
+
+  try {
+    const result = await window.electronAPI.runRenderVideo();
+    const newLine = document.createElement('div');
+    newLine.textContent = `\nVideo created successfully\n`;
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+
+  } catch (err) {
+    const result = await window.electronAPI.runRenderVideo();
+    const newLine = document.createElement('div');
+    newLine.textContent = `\nError running video render:\n' + ${err.message}`;
     consoleDiv.appendChild(newLine);
     consoleDiv.scrollTop = consoleDiv.scrollHeight;
   }

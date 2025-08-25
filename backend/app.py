@@ -238,11 +238,11 @@ if __name__ == "__main__":
     #Render output
     parser.add_argument("--nseconds", default="60", help="Length of video (s)")
     parser.add_argument("--background_colour", default="black", help="Background colour for video")
+    parser.add_argument("--generate_frames", action="store_true", help="Generates frames using colmap input")
     parser.add_argument("--render_rgb", action="store_true", help="Render rgb video")
     #TODO future add option to get depth video from ffmpeg
     #Input
     parser.add_argument("--colmap_dir", help="Directory to colmap text files")
-    #TODO future add support for ply file (not colmap)
 
     #Load args
     args = parser.parse_args()
@@ -250,60 +250,82 @@ if __name__ == "__main__":
     colmap_dir = args.colmap_dir
     background_colour = get_background_colour(args.background_colour)
     render_rgb = args.render_rgb
+    render_folder = './renders'
+    poses_txt = './outputs/poses.txt'
 
     #Colmap paths
-    cameras_txt = f"{colmap_dir}/cameras.txt"
-    images_txt = f"{colmap_dir}/images.txt"
-    points3d_txt = f"{colmap_dir}/points3D.txt"
-    #Load colmap
-    print("Loading colmap info")
-    colmap_cameras = read_cameras_text(cameras_txt)
-    colmap_images = read_images_text(images_txt)
-    colmap_images = dict(sorted(colmap_images.items(), key = lambda kv: int(kv[1].name.split('.')[0].split('_')[1]))) #sort by timestamps
-    colmap_points = read_points3D_text(points3d_txt)
+    if args.generate_frames:
+        cameras_txt = f"{colmap_dir}/cameras.txt"
+        images_txt = f"{colmap_dir}/images.txt"
+        points3d_txt = f"{colmap_dir}/points3D.txt"
+        #Load colmap
+        print("Loading colmap info")
+        colmap_cameras = read_cameras_text(cameras_txt)
+        colmap_images = read_images_text(images_txt)
+        colmap_images = dict(sorted(colmap_images.items(), key = lambda kv: int(kv[1].name.split('.')[0].split('_')[1]))) #sort by timestamps
+        colmap_points = read_points3D_text(points3d_txt)
 
-    #Load camera information
-    key = 1
-    camera = colmap_cameras[1]
-    width = camera.width
-    height = camera.height
-    if camera.model == "PINHOLE":
-        fx, fy, cx, cy = camera.params
-    elif camera.model == "OPENCV":
-        fx, fy, cx, cy, k1, k2, p1, p2 = camera.params
+        #Load camera information
+        key = 1
+        camera = colmap_cameras[1]
+        width = camera.width
+        height = camera.height
+        if camera.model == "PINHOLE":
+            fx, fy, cx, cy = camera.params
+        elif camera.model == "OPENCV":
+            fx, fy, cx, cy, k1, k2, p1, p2 = camera.params
 
-    #Load poses
-    poses = []
-    for k, v in colmap_images.items():
-        tvec = v.tvec
-        qvec = v.qvec
-        pose = tq2rotmat(tvec, qvec)
-        poses.append(pose)
-    
-    #Render snapshots with open3d
-    print("Interpolating poses")
-    pcd = createPlyColmap(colmap_points)
-    out_path = "./outputs/pointcloud.ply"
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    o3d.io.write_point_cloud(out_path, pcd, write_ascii=False)
-    newposes = interpolate_poses(poses)
-    render_folder = './renders'
-    custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
+        #Load poses
+        poses = []
+        for k, v in colmap_images.items():
+            tvec = v.tvec
+            qvec = v.qvec
+            pose = tq2rotmat(tvec, qvec)
+            poses.append(pose)
+        
+        #Create ply file if not supplied
+        out_path = "./outputs/pointcloud.ply"
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        print("Creating ply...")
+        pcd = createPlyColmap(colmap_points)
+        o3d.io.write_point_cloud(out_path, pcd, write_ascii=False)
+        print("Interpolating poses...")
+        newposes = interpolate_poses(poses)
+        #Render snapshots with open3d
+        print("Rendering frames...")
+        custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
 
-    #Debug visualiser
-    visualise_debugger(newposes, poses)
+        #Debug visualiser
+        # visualise_debugger(newposes, poses)
+
+        #Output number of poses to a text file
+        n_poses = len(newposes)
+        with open(poses_txt, 'w') as file:
+            file.write(f'{n_poses}')
 
     #Render video
-    base = os.path.abspath(render_folder)
-    img_seq = os.path.join(base, "image", "%05d.png")
-    depth_seq = os.path.join(base, "depth", "%05d.png")
-    os.makedirs("./outputs", exist_ok=True)
-    fps = int(len(newposes)/nseconds)
     if render_rgb:
-        print("Rendering video")
+        base = os.path.abspath(render_folder)
+        img_seq = os.path.join(base, "image", "%05d.png")
+        depth_seq = os.path.join(base, "depth", "%05d.png")
+        os.makedirs("./outputs", exist_ok=True)
+
+        with open(poses_txt, 'r') as file:
+            n_poses = int(file.readline())
+        fps = int(n_poses/nseconds)
+        print(f'Number of poses: {n_poses}, Frame rate: {fps}')
+
         if os.path.exists("./outputs/rgb.mp4"):
             os.remove("./outputs/rgb.mp4")
-        cmd = f"ffmpeg -framerate {fps} -i {render_folder}/image/%05d.png -pix_fmt yuv420p ./outputs/rgb.mp4"
+        
+        cmd = [
+            'ffmpeg',
+            '-framerate', str(fps),
+            '-i', os.path.join(render_folder, 'image', '%05d.png'),
+            '-pix_fmt', 'yuv420p',
+            './outputs/rgb.mp4'
+        ]
+        print("Running ffmpeg")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
 
         # parse to stdout

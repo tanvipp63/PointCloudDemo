@@ -6,11 +6,19 @@
     <link rel="stylesheet" href="../static/css/main.css">
 </head>
 <body>
-    <button type="button" id="link-button">Link Folder</button>
+    <h2 id="button-title">Point Cloud Video Generator</h2>
+    <div class="button-group">
+        <button type="button" id="link-button">Link COLMAP_TXT Folder</button>
+        <button type="button" id="render-button">Render Video</button>
+    </div>
+
     <div id="app">
         <div id="canvas-container"></div>
     </div>
     <script type="module" src="./renderer.js"></script>
+
+    <h2 id="console-title">Console</h2>
     <div id="console"></div>
+    <div id="video-player"></div>
 </body>
 </html>

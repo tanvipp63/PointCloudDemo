@@ -26,7 +26,7 @@ ipcMain.handle('select-folder', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('run-python', (event, folderPath) => {
+ipcMain.handle('run-poseinterp', (event, folderPath) => {
   return new Promise((resolve, reject) => {
     const os = require('os');
     const pythonPath = os.platform() === 'win32' ?
@@ -34,7 +34,40 @@ ipcMain.handle('run-python', (event, folderPath) => {
       path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
     const scriptPath = path.join(__dirname, 'backend', 'app.py');
 
-    const pyProcess = spawn(pythonPath, [scriptPath, '--colmap_dir', folderPath, '--render_rgb']);
+    const pyProcess = spawn(pythonPath, [scriptPath, '--colmap_dir', folderPath, '--generate_frames']);
+
+    let output = '';
+    let error = '';
+
+    pyProcess.stdout.on('data', (data) => {
+      output += data.toString();
+      mainWindow.webContents.send('python-log', data.toString());
+    });
+
+    pyProcess.stderr.on('data', (data) => {
+      error += data.toString();
+      mainWindow.webContents.send('python-error', data.toString());
+    });
+
+    pyProcess.on('close', (code) => {
+      if (code === 0) {
+        resolve(output);
+      } else {
+        reject(new Error(`Python script exited with code ${code}\n${error}`));
+      }
+    });
+  });
+});
+
+ipcMain.handle('run-rendervideo', (event) => {
+  return new Promise((resolve, reject) => {
+    const os = require('os');
+    const pythonPath = os.platform() === 'win32' ?
+      path.join(__dirname, 'backend', 'env_backend', 'Scripts', 'python.exe') :
+      path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
+    const scriptPath = path.join(__dirname, 'backend', 'app.py');
+
+    const pyProcess = spawn(pythonPath, [scriptPath, '--render_rgb']);
 
     let output = '';
     let error = '';

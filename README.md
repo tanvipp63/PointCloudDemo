@@ -8,6 +8,7 @@ source backend/env_backend/bin/activate
 python backend/app.py --colmap_dir /home/tparu2/PointCloudDemoRestored/colmap_sample
 
 ## To do
-Make app window dimensions adjust from full screen to minimise
 Download button for video? + Option to select background colour of video (black, white)
-Display window for video (video player)
+Link to ply file
+Render video button
+Show video & download to Downloads folder
