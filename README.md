@@ -8,7 +8,6 @@ source backend/env_backend/bin/activate
 python backend/app.py --colmap_dir /home/tparu2/PointCloudDemoRestored/colmap_sample
 
 ## To do
-Download for video
 
 ## Future Dev
 Download a ply file to use instead of points3d.txt from COLMAP
