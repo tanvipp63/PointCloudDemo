@@ -25,35 +25,6 @@ controls.listenToKeyEvents( window );
 // camera.position.z = 5; /* Offset camera so it is not on top of the cube */
 // controls.update();
 
-/*Ply loading from backend*/
-const loader = new PLYLoader();
-loader.load('../outputs/pointcloud.ply', (geometry) => {
-  const hasColors = !!geometry.getAttribute('color');
-  if (!hasColors) {
-    // Optionally set a fallback color
-    geometry.setAttribute('color',
-      new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count * 3).fill(0.5), 3)
-    );
-  }
-
-  const material = new THREE.PointsMaterial({
-    size: 0.01,
-    vertexColors: true,
-    sizeAttenuation: true
-  });
-
-  const points = new THREE.Points(geometry, material);
-  scene.add(points);
-
-  geometry.computeBoundingBox();
-  const bb = geometry.boundingBox;
-  const center = new THREE.Vector3();
-  bb.getCenter(center);
-  controls.target.copy(center);
-  camera.position.set(center.x, center.y, center.z + (bb.getSize(new THREE.Vector3()).length() * 1.2));
-  controls.update();
-});
-
 /*Animation function */
 function animate() {
 	renderer.render( scene, camera );
@@ -102,60 +73,121 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-const linkButton = document.getElementById('link-button');
+/* console updater */
 const consoleDiv = document.getElementById('console');
+
+function appendConsoleLine(text, isError=false){
+    const newLine = document.createElement('div');
+    
+    if (isError){
+      newLine.textContent = 'ERROR: ' + text;
+      newLine.style.color = 'red';
+    } else{
+      newLine.textContent = `\n${text}\n`;
+    }
+    consoleDiv.appendChild(newLine);
+    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+}
+
+/*Ply loading from backend*/
+let currentPoints = null;
+const loader = new PLYLoader();
+
+function clearCurrentPointcloud() {
+  if (currentPoints) {
+    scene.remove(currentPoints);
+    if (currentPoints.geometry) currentPoints.geometry.dispose();
+    if (currentPoints.material) currentPoints.material.dispose();
+    currentPoints = null;
+  }
+}
+
+async function loadPointcloudFromUrl(fileUrl){
+  try{
+    appendConsoleLine(`Loading point cloud: ${fileUrl}`);
+    loader.load('../outputs/pointcloud.ply', (geometry) => {
+      const hasColors = !!geometry.getAttribute('color');
+      if (!hasColors) {
+        // Optionally set a fallback color
+        geometry.setAttribute('color',
+          new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count * 3).fill(0.5), 3)
+        );
+      }
+
+      const material = new THREE.PointsMaterial({
+        size: 0.01,
+        vertexColors: true,
+        sizeAttenuation: true
+      });
+
+      const points = new THREE.Points(geometry, material);
+      clearCurrentPointcloud();
+      currentPoints = points;
+      scene.add(points);
+
+      geometry.computeBoundingBox();
+      const bb = geometry.boundingBox;
+      const center = new THREE.Vector3();
+      bb.getCenter(center);
+      controls.target.copy(center);
+      camera.position.set(center.x, center.y, center.z + (bb.getSize(new THREE.Vector3()).length() * 1.2));
+      controls.update();
+      appendConsoleLine('Point cloud loaded.');
+    });    
+  } catch (err) {
+    appendConsoleLine(`Error in loading pointcloud.ply: ${err.message}`);
+  }
+}
+
+let reloadTimer = null;
+const RELOAD_DEBOUNCE_MS = 600;
+function scheduleReload(fileUrl) {
+  if (reloadTimer) clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    reloadTimer = null;
+    loadPointcloudFromUrl(fileUrl);
+  }, RELOAD_DEBOUNCE_MS);
+}
+
+if (window.electronAPI && window.electronAPI.onPointCloudGenerated) {
+  window.electronAPI.onPointCloudGenerated((fileUrl) => {
+    appendConsoleLine(`Detected pointcloud update: ${fileUrl}`);
+    scheduleReload(fileUrl);
+  });
+}
+
+/* Button functions */
+const linkButton = document.getElementById('link-button');
 
 linkButton.addEventListener('click', async () => {
   const folder = await window.electronAPI.selectFolder();
   if (!folder) {
-    const newLine = document.createElement('div');
-    newLine.textContent = "Folder not found!\n";
-    consoleDiv.appendChild(newLine);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    appendConsoleLine("Folder not found!", true)
     return;
   }
-  const newLine = document.createElement('div');
-  newLine.textContent = `Selected folder: ${folder}. Running backend...\n`;
-  consoleDiv.appendChild(newLine);
-  consoleDiv.scrollTop = consoleDiv.scrollHeight;
+  appendConsoleLine(`Selected folder: ${folder}. Running backend...`);
 
   try {
     const result = await window.electronAPI.runPoseInterp(folder);
-    const newLine = document.createElement('div');
-    newLine.textContent = `\nBackend finished successfully\n`;
-    consoleDiv.appendChild(newLine);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
-
+    appendConsoleLine("Backend finished successfully");
   } catch (err) {
     const result = await window.electronAPI.runPoseInterp(folder);
-    const newLine = document.createElement('div');
-    newLine.textContent = `\nError running backend:\n' + ${err.message}`;
-    consoleDiv.appendChild(newLine);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    appendConsoleLine(`Error running backend:\n' + ${err.message}`, true);
   }
 });
 
 const renderButton = document.getElementById('render-button');
 
 renderButton.addEventListener('click', async () => {
-  const newLine = document.createElement('div');
-  newLine.textContent = `Rendering video...\n`;
-  consoleDiv.appendChild(newLine);
-  consoleDiv.scrollTop = consoleDiv.scrollHeight;
+  appendConsoleLine("Rendering video...");
 
   try {
     const result = await window.electronAPI.runRenderVideo();
-    const newLine = document.createElement('div');
-    newLine.textContent = `\nVideo created successfully\n`;
-    consoleDiv.appendChild(newLine);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    appendConsoleLine("Video created successfully");
 
   } catch (err) {
     const result = await window.electronAPI.runRenderVideo();
-    const newLine = document.createElement('div');
-    newLine.textContent = `\nError running video render:\n' + ${err.message}`;
-    consoleDiv.appendChild(newLine);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    appendConsoleLine(`Error running video render:\n' + ${err.message}`, true)
   }
 });
 
@@ -163,50 +195,33 @@ const downloadButton = document.getElementById('download-button');
 
 downloadButton.addEventListener('click', async () => {
   downloadButton.disabled = true;
-  const newLine = document.createElement('div');
-  newLine.textContent = `\nOpening donwload dialogue...\n`;
-  consoleDiv.appendChild(newLine);
-  consoleDiv.scrollTop = consoleDiv.scrollHeight;
+  appendConsoleLine("Opening donwload dialogue...");
 
   try {
     const savedPath = await window.electronAPI.saveVideo();
     if (!savedPath) {
-      const newLine = document.createElement('div');
-      newLine.textContent = '\nSave cancelled by user.\n';
-      consoleDiv.appendChild(newLine);
-      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+      appendConsoleLine("Save cancelled by user");
     } else {
-      const newLine = document.createElement('div');
-      newLine.textContent = `\nVideo saved to: ${savedPath}\n`;
-      consoleDiv.appendChild(newLine);
-      consoleDiv.scrollTop = consoleDiv.scrollHeight;      
+      appendConsoleLine(`Video saved to: ${savedPath}`, true);      
     }
   } catch (err) {
-    const newLine = document.createElement('div');
-    newLine.textContent = `\nError saving video: ' + ${err.message}\n`;
-    consoleDiv.appendChild(newLine);
-    consoleDiv.scrollTop = consoleDiv.scrollHeight;       
+    appendConsoleLine(`Error saving video: ' + ${err.message}`, true)      
   } finally {
     downloadButton.disabled = false;
   }
 });
 
 
+/* callbacks */
 window.electronAPI.onPythonLog((data) => {
-  const newLine = document.createElement('div');
-  newLine.textContent = data;
-  consoleDiv.appendChild(newLine);
-  consoleDiv.scrollTop = consoleDiv.scrollHeight; // auto scroll down
+  appendConsoleLine(data);
 });
 
 window.electronAPI.onPythonError((data) => {
-  const newLine = document.createElement('div');
-  newLine.textContent = 'ERROR: ' + data;
-  newLine.style.color = 'red';
-  consoleDiv.appendChild(newLine);
-  consoleDiv.scrollTop = consoleDiv.scrollHeight; // auto scroll down
+  appendConsoleLine(data, true);
 });
 
+/* window resizing */
 function onWindowResize() {
   const width = container.clientWidth;
   const height = container.clientHeight;
