@@ -19,14 +19,14 @@ function createWindow() {
   mainWindow.loadFile('templates/index.html');
 }
 
-app.whenReady().then(createWindow);
-
+/* Event handler for link button to access COLMAP txt */
 ipcMain.handle('select-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory'] });
   if (result.canceled) return null;
   return result.filePaths[0];
 });
 
+/* Event handler for running pose interpolation and frame generation */
 ipcMain.handle('run-poseinterp', (event, folderPath) => {
   return new Promise((resolve, reject) => {
     const os = require('os');
@@ -59,7 +59,7 @@ ipcMain.handle('run-poseinterp', (event, folderPath) => {
     });
   });
 });
-
+/* Runs video rendering with ffmpeg */
 ipcMain.handle('run-rendervideo', (event) => {
   return new Promise((resolve, reject) => {
     const os = require('os');
@@ -92,7 +92,7 @@ ipcMain.handle('run-rendervideo', (event) => {
     });
   });
 });
-
+/* Video download for download button */
 ipcMain.handle('save-video', async () => {
   try {
     const srcPath = path.join(__dirname, 'outputs', 'rgb.mp4');
@@ -122,4 +122,61 @@ ipcMain.handle('save-video', async () => {
   } catch (err) {
     throw err;
   }
+});
+
+/* File watchers and updaters for ply file rendering */
+const { pathToFileURL } = require('url');
+const outputsDir = path.join(__dirname, 'outputs')
+const watchedFilename = 'pointcloud.ply'
+const watchedPath = path.join(outputsDir, watchedFilename);
+
+function sendPointcloudUpdated(){
+  if (!mainWindow || !mainWindow.webContents) return;
+  const fileUrl = pathToFileURL(watchedPath).href;
+  mainWindow.webContents.send('pointcloud-updated', fileUrl);
+}
+
+function startWatchingOutputs() {
+  /* on startup */
+  try{
+    if (fs.existsSync(watchedPath)) {
+      mainWindow.webContents.send('python-log', 'pointcloud.ply exists at startup - sending update');
+      sendPointcloudUpdated();
+    }
+  } catch (e){
+    mainWindow.webContents.send('python-error', `Watch startup check failed:\n ${e}`);
+  }
+
+  /* new file created */
+  try{
+    fs.watch(outputsDir, (eventType, filename) => {
+      if (!filename) return;
+      if (filename == watchedFilename){
+        setTimeout(() => {
+          if (fs.existsSync(watchedPath)) sendPointcloudUpdated();
+        }, 300);
+      }
+    });
+  } catch (e) {
+    mainWindow.webContents.send('python-error', `fs.watch of outputs failed (maybe folder is missing): ${e}`);
+  }
+
+  /* polling */
+  try {
+    fs.watchFile(watchedPath, {interval : 1000}, (curr,prev) => {
+      if (curr.mtimeMs && curr.mtimeMs != prev.mtimeMs) {
+        mainWindow.webContents.send('python-log', 'pointcloud.ply changed - sending update');
+        sendPointcloudUpdated();
+      }
+    });
+  } catch (e){
+    mainWindow.webContents.send('python-error', `fs.watchFile setup failed ${e}`);
+  }
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  mainWindow.webContents.on('did-finish-load', () => {
+    startWatchingOutputs();
+  });
 });
