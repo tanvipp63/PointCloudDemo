@@ -2,6 +2,10 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
+const isPackaged = app.isPackaged;
+const basePath = isPackaged ? process.resourcesPath : __dirname;
+const { pathToFileURL } = require('url');
+const outputsDir = path.join(app.getPath('userData'), 'outputs');
 
 let mainWindow;
 
@@ -10,7 +14,7 @@ function createWindow() {
     width: 900,
     height: 700,
     webPreferences: {
-      preload: path.join(__dirname, 'templates/preload.js'),
+      preload: path.join(basePath, 'templates/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     }
@@ -31,11 +35,11 @@ ipcMain.handle('run-poseinterp', (event, folderPath) => {
   return new Promise((resolve, reject) => {
     const os = require('os');
     const pythonPath = os.platform() === 'win32' ?
-      path.join(__dirname, 'backend', 'env_backend', 'Scripts', 'python.exe') :
-      path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
-    const scriptPath = path.join(__dirname, 'backend', 'app.py');
+      path.join(basePath, 'backend', 'env_backend', 'Scripts', 'python.exe') :
+      path.join(basePath, 'backend', 'env_backend', 'bin', 'python');
+    const scriptPath = path.join(basePath, 'backend', 'app.py');
 
-    const pyProcess = spawn(pythonPath, [scriptPath, '--colmap_dir', folderPath, '--generate_frames']);
+    const pyProcess = spawn(pythonPath, [scriptPath, '--colmap_dir', folderPath, '--generate_frames', '--output_dir', outputsDir]);
 
     let output = '';
     let error = '';
@@ -64,11 +68,11 @@ ipcMain.handle('run-rendervideo', (event) => {
   return new Promise((resolve, reject) => {
     const os = require('os');
     const pythonPath = os.platform() === 'win32' ?
-      path.join(__dirname, 'backend', 'env_backend', 'Scripts', 'python.exe') :
-      path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
-    const scriptPath = path.join(__dirname, 'backend', 'app.py');
+      path.join(basePath, 'backend', 'env_backend', 'Scripts', 'python.exe') :
+      path.join(basePath, 'backend', 'env_backend', 'bin', 'python');
+    const scriptPath = path.join(basePath, 'backend', 'app.py');
 
-    const pyProcess = spawn(pythonPath, [scriptPath, '--render_rgb']);
+    const pyProcess = spawn(pythonPath, [scriptPath, '--render_rgb', '--output_dir', outputsDir]);
 
     let output = '';
     let error = '';
@@ -95,7 +99,7 @@ ipcMain.handle('run-rendervideo', (event) => {
 /* Video download for download button */
 ipcMain.handle('save-video', async () => {
   try {
-    const srcPath = path.join(__dirname, 'outputs', 'rgb.mp4');
+    const srcPath = path.join(outputsDir, 'rgb.mp4');
 
     // ensure the source file exists
     if (!fs.existsSync(srcPath)) {
@@ -125,9 +129,7 @@ ipcMain.handle('save-video', async () => {
 });
 
 /* File watchers and updaters for ply file rendering */
-const { pathToFileURL } = require('url');
-const outputsDir = path.join(__dirname, 'outputs')
-const watchedFilename = 'pointcloud.ply'
+const watchedFilename = 'pointcloud.ply';
 const watchedPath = path.join(outputsDir, watchedFilename);
 
 function sendPointcloudUpdated(){

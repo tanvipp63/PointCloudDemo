@@ -243,15 +243,22 @@ if __name__ == "__main__":
     #TODO future add option to get depth video from ffmpeg
     #Input
     parser.add_argument("--colmap_dir", help="Directory to colmap text files")
+    parser.add_argument("--output_dir", help="User directory to outputs folder")
 
     #Load args
     args = parser.parse_args()
     nseconds = int(args.nseconds)
     colmap_dir = args.colmap_dir
+    if args.output_dir:
+        outputs_dir = os.path.abspath(args.output_dir)
+        render_folder = f'{outputs_dir}/renders'
+    else:
+        outputs_dir = './outputs'
+        render_folder = './renders'    
     background_colour = get_background_colour(args.background_colour)
     render_rgb = args.render_rgb
-    render_folder = './renders'
-    poses_txt = './outputs/poses.txt'
+    poses_txt = f'{outputs_dir}/poses.txt'
+
 
     #Colmap paths
     if args.generate_frames:
@@ -284,7 +291,7 @@ if __name__ == "__main__":
             poses.append(pose)
         
         #Create ply file if not supplied
-        out_path = "./outputs/pointcloud.ply"
+        out_path = f"{outputs_dir}/pointcloud.ply"
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         print("Creating ply...")
         pcd = createPlyColmap(colmap_points)
@@ -312,22 +319,22 @@ if __name__ == "__main__":
         base = os.path.abspath(render_folder)
         img_seq = os.path.join(base, "image", "%05d.png")
         depth_seq = os.path.join(base, "depth", "%05d.png")
-        os.makedirs("./outputs", exist_ok=True)
+        os.makedirs(f"{outputs_dir}", exist_ok=True)
 
         with open(poses_txt, 'r') as file:
             n_poses = int(file.readline())
         fps = int(n_poses/nseconds)
         print(f'Number of poses: {n_poses}, Frame rate: {fps}')
 
-        if os.path.exists("./outputs/rgb.mp4"):
-            os.remove("./outputs/rgb.mp4")
+        if os.path.exists(f"{outputs_dir}/rgb.mp4"):
+            os.remove(f"{outputs_dir}/rgb.mp4")
         
         cmd = [
             'ffmpeg',
             '-framerate', str(fps),
             '-i', os.path.join(render_folder, 'image', '%05d.png'),
             '-pix_fmt', 'yuv420p',
-            './outputs/rgb.mp4'
+            f'{outputs_dir}/rgb.mp4'
         ]
         print("Running ffmpeg")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
