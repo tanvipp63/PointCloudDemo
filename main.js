@@ -177,6 +177,16 @@ function startWatchingOutputs() {
 app.whenReady().then(() => {
   createWindow();
   mainWindow.webContents.on('did-finish-load', () => {
+    try {
+      //make outputs directory
+      fs.mkdirSync(outputsDir, { recursive: true });
+      mainWindow.webContents.send('python-log', `Ensured outputs dir: ${outputsDir}`);
+    } catch (err) {
+      console.error('Failed to create outputs dir', err);
+      if (mainWindow && mainWindow.webContents) {
+        mainWindow.webContents.send('python-error', `Failed to create outputs dir:\n${err.stack || err}`);
+      }
+    }    
     startWatchingOutputs();
   });
 });
