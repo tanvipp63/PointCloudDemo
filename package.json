@@ -5,7 +5,9 @@
   "main": "./main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"                   
   },
   "repository": {
     "type": "git",
@@ -20,6 +22,34 @@
   },
   "homepage": "https://github.com/tanvipp63/PointCloudDemo#readme",
   "devDependencies": {
-    "electron": "^37.2.6"
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.tanvipp63.pointclouddemo",
+    "productName": "PointCloudDemo",
+    "files": [
+      "**/*",
+      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      "backend/**"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": ["AppImage","deb"],
+      "icon": "build"
+    }
   }
 }
