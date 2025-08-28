@@ -10,5 +10,4 @@ renders
 colmap_sample
 __pycache__
 node_modules/
-outputs/*
-!outputs/.gitkeep
+outputs/
