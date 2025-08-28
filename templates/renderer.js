@@ -202,7 +202,7 @@ downloadButton.addEventListener('click', async () => {
     if (!savedPath) {
       appendConsoleLine("Save cancelled by user");
     } else {
-      appendConsoleLine(`Video saved to: ${savedPath}`, true);      
+      appendConsoleLine(`Video saved to: ${savedPath}`, false);      
     }
   } catch (err) {
     appendConsoleLine(`Error saving video: ' + ${err.message}`, true)      

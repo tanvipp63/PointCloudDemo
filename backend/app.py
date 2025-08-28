@@ -1,4 +1,4 @@
-import os, math, sys
+import os, math, sys, shutil
 import argparse
 import subprocess
 import open3d as o3d
@@ -293,6 +293,10 @@ if __name__ == "__main__":
         newposes = interpolate_poses(poses)
         #Render snapshots with open3d
         print("Rendering frames...")
+        if os.path.exists(f"{render_folder}/image"):
+            shutil.rmtree(f"{render_folder}/image")
+        if os.path.exists(f"{render_folder}/depth"):
+            shutil.rmtree(f"{render_folder}/depth")        
         custom_draw_geometry_with_camera_trajectory(pcd, newposes, width, height, fx, fy, cx, cy, background_colour, render_folder)
 
         #Debug visualiser
