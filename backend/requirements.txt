@@ -1,4 +1,5 @@
 addict==2.4.0
+altgraph==0.17.4
 asttokens==3.0.0
 attrs==25.3.0
 blinker==1.9.0
@@ -50,6 +51,8 @@ prompt_toolkit==3.0.52
 ptyprocess==0.7.0
 pure_eval==0.2.3
 Pygments==2.19.2
+pyinstaller==6.15.0
+pyinstaller-hooks-contrib==2025.8
 PyMySQL==1.1.2
 pyparsing==3.2.3
 pyquaternion==0.9.9
@@ -77,5 +80,6 @@ vedo==2025.5.4
 vtk==9.5.1
 wcwidth==0.2.13
 Werkzeug==3.1.3
+wheel==0.45.1
 widgetsnbextension==4.0.14
 zipp==3.23.0
