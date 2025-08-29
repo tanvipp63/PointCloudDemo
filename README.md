@@ -15,9 +15,10 @@ Pose-interpolation uses SQUAD and Catmull-romm.
 | A/D | Move left/right |
 | Click and drag | Rotate scene using ThreeJS Orbital Controls|
 ### How to use the app
-1. Click, 'Link COLMAP TXT folder': Choose a folder with colmap files (images.txt, cameras.txt, points3d.txt): The app will load the poses, interpolate new poses and render frames for a video. Wait until this process completes in the Console
-2. Click, 'Render video': Creates video using frames. Wait until this process completes in the Console
-3. Click, 'Download video': Downloads the final video locally
+1. Prepare a folder with colmap files (images.txt, cameras.txt, points3d.txt). The images.txt will be used to load poses in order of timestamps (based on the image name, in the format frame_%06d.jpg or frame_%06d.png).
+2. Click, 'Link COLMAP TXT folder': Choose the folder with colmap files (images.txt, cameras.txt, points3d.txt): The app will load the poses, interpolate new poses and render frames for a video. Wait until this process completes in the Console
+3. Click, 'Render video': Creates video using frames. Wait until this process completes in the Console
+4. Click, 'Download video': Downloads the final video locally
 
 ## Future Dev
 ### User options
@@ -25,6 +26,7 @@ Pose-interpolation uses SQUAD and Catmull-romm.
 - Select camera poses to add in the app before interpolation as substitute for images.txt from COLMAP
 - Option to modify camera parameters as a substitute for cameras.txt from COLMAP
 - Adapt to OPENCV model of COLMAP input instead of just PINHOLE
+- Option to render a depth video in addition to rgb
 - Choose background colour for rendering the video, changing the three.js display and the input into the frame generation
 ### UI
 - Video player: shows the rendered video, with pause, play and scroll bar

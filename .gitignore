@@ -6,6 +6,8 @@ templates/node_modules/
 templates/package-lock.json
 templates/package.json
 env_backend
+env_min
+env_old
 renders
 colmap_sample
 __pycache__

@@ -4,12 +4,11 @@ import subprocess
 import open3d as o3d
 from tqdm import tqdm
 from scipy.spatial.transform import Slerp, Rotation
-import quaternion
 import numpy as np
 from utils.read_write_colmap_model import *
 from vedo import show, Line, Arrow, Axes, Sphere
 from transforms3d.quaternions import qmult, qinverse, qnorm, qlog, qexp
-
+from imageio_ffmpeg import get_ffmpeg_exe
 
 def createPlyColmap(colmap_points):
     xyz = [v.xyz for k, v in colmap_points.items()]
@@ -328,9 +327,11 @@ if __name__ == "__main__":
 
         if os.path.exists(f"{outputs_dir}/rgb.mp4"):
             os.remove(f"{outputs_dir}/rgb.mp4")
+
+        ffmpeg_exe = get_ffmpeg_exe()
         
         cmd = [
-            'ffmpeg',
+            ffmpeg_exe,
             '-framerate', str(fps),
             '-i', os.path.join(render_folder, 'image', '%05d.png'),
             '-pix_fmt', 'yuv420p',
