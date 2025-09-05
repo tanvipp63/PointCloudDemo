@@ -1,16 +1,41 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_data_files
-from PyInstaller.utils.hooks import collect_submodules
+import os
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 block_cipher = None
 
-# collect vedo data files (fonts, models, etc.)
-datas = collect_data_files('vedo')    # collects package data into datas list
-# optional: collect hidden imports if needed
+here = os.path.abspath(os.path.dirname(__name__))
+
+pathex = [ here ]
+
+datas = collect_data_files('vedo')
+
 hiddenimports = collect_submodules('vedo')
+
+utils_dir = os.path.join(here, 'utils')
+
+def collect_dir(src_dir, dest_folder):
+    items = []
+    if not os.path.exists(src_dir):
+        return items
+    for root, _, files in os.walk(src_dir):
+        for fn in files:
+            srcf = os.path.join(root, fn)
+            # destination should preserve subdirectory structure under dest_folder
+            rel = os.path.relpath(srcf, src_dir)
+            dest = os.path.join(dest_folder, rel)
+            items.append((srcf, dest))
+    return items
+
+datas += collect_dir(utils_dir, 'utils')
+
+try:
+    hiddenimports += collect_submodules('utils')
+except Exception:
+    pass
 
 a = Analysis(
     ['app.py'],
-    pathex=[],
+    pathex=pathex,
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

@@ -13,3 +13,5 @@ colmap_sample
 __pycache__
 node_modules/
 outputs
+backend/build
+backend/dist

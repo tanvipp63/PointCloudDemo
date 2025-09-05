@@ -36,4 +36,11 @@ Pose-interpolation uses SQUAD and Catmull-romm.
 Run the app using 'npm start'
 Running backend by itself: 
 source backend/env_backend/bin/activate
-python backend/app.py --colmap_dir /home/tparu2/PointCloudDemoRestored/colmap_sample -->
+Generate frames:
+python backend/app.py --colmap_dir /home/tparu2/PointCloudDemoRestored/colmap_sample --generate_frames --output_dir ./outputs 
+Render video:
+python backend/app.py --render_rgb --output_dir ./outputs
+
+To use executable, replace python with ./backend/dist/app 
+
+Build app by runnign pyinstaller app.spec (pyinstaller is in the env_backend)-->

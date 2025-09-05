@@ -253,7 +253,7 @@ if __name__ == "__main__":
         render_folder = f'{outputs_dir}/renders'
     else:
         outputs_dir = './outputs'
-        render_folder = './renders'    
+        render_folder = f'./renders'    
     background_colour = get_background_colour(args.background_colour)
     render_rgb = args.render_rgb
     poses_txt = f'{outputs_dir}/poses.txt'
