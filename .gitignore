@@ -15,3 +15,5 @@ node_modules/
 outputs
 backend/build
 backend/dist
+build
+dist
