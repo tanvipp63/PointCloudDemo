@@ -17,3 +17,5 @@ backend/build
 backend/dist
 build
 dist
+app.mp4
+pointclouddemo_rgb.mp4
