@@ -1,8 +1,10 @@
 {
-  "name": "pointclouddemorestored",
+  "name": "PointCloudDemo",
+  "author": "Tanvi Parulekar <tanvipp63@gmail.com> (https://github.com/tanvipp63)",
   "version": "1.0.0",
   "description": "Web application that takes a video or image and visualises the point cloud in real time. Useful for demo applications.",
   "main": "./main.js",
+  "license": "MIT",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
@@ -14,11 +16,10 @@
     "url": "git+https://github.com/tanvipp63/PointCloudDemo.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/tanvipp63/PointCloudDemo/issues"
+    "url": "https://github.com/tanvipp63/PointCloudDemo/issues",
+    "email": "tanvipp63@gmail.com"
   },
   "homepage": "https://github.com/tanvipp63/PointCloudDemo#readme",
   "devDependencies": {
@@ -29,12 +30,20 @@
     "appId": "com.tanvipp63.pointclouddemo",
     "productName": "PointCloudDemo",
     "files": [
-      "**/*",
-      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
-      "!**/*.map"
+      "!backend/env_backend/**",
+      "!backend/build/**",
+      "!backend/*.spec",
+      "!backend/__pycache__/**",
+      "!backend/*.log",
+      "!backend/utils/**",
+      "**/*"
     ],
     "extraResources": [
-      "backend/**"
+      {
+        "from": "backend/dist",
+        "to": "backend/dist",
+        "filter": ["**/*"]
+      }
     ],
     "directories": {
       "buildResources": "build"
@@ -52,7 +61,7 @@
         "AppImage",
         "deb"
       ],
-      "icon": "build"
+      "icon": "build/icon.png"
     }
   }
 }

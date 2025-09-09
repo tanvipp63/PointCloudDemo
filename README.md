@@ -1,4 +1,3 @@
-![](./demo/app.mp4) | ![](./demo/pointclouddemo_rgb.mp4)
 # PointCloudDemo
 A generator of a video that goes through a point cloud scene. Useful for creating virtual demos. 
 Front-end in ThreeJS, HTML, CSS, Electron.
