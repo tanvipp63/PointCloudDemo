@@ -1,10 +1,13 @@
-<table>
+<table style="width:100%;">
   <tr>
-    <td>
-        <a href=""><img src="./demo/app.gif" alt="GUI demo" width="100%"></a>
+    <td style="width: 50%">
+        <a href="./demo/app.gif"><img src="./demo/app.gif" alt="GUI demo"></a>
+    </td>
+    <td style="width: 50%">
+        <a href="./demo/pointclouddemo_rgb.gif"><img src="./demo/pointclouddemo_rgb.gif" alt="Video demo"></a>
     </td>
   </tr>
-<table>
+</table>
 
 # PointCloudDemo
 A generator of a video that goes through a point cloud scene. Useful for creating virtual demos. 
