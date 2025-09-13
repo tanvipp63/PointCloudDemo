@@ -291,8 +291,8 @@ if __name__ == "__main__":
         
         #Create ply file if not supplied
         out_path = f"{outputs_dir}/pointcloud.ply"
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
         print("Creating ply...")
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
         pcd = createPlyColmap(colmap_points)
         o3d.io.write_point_cloud(out_path, pcd, write_ascii=False)
         print("Interpolating poses...")
