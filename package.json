@@ -30,13 +30,20 @@
     "appId": "com.tanvipp63.pointclouddemo",
     "productName": "PointCloudDemo",
     "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/*.map",
       "!backend/env_backend/**",
+      "!backend/.venv/**",
       "!backend/build/**",
       "!backend/*.spec",
       "!backend/__pycache__/**",
       "!backend/*.log",
-      "!backend/utils/**",
-      "**/*"
+      "!backend/requirements.txt",
+      "!outputs/**",
+      "!demo/**",
+      "!colmap_sample/**",
+      "!app.mp4"
     ],
     "extraResources": [
       {
