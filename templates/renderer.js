@@ -2,6 +2,12 @@ import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js?module';
 import { PLYLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/PLYLoader.js?module';
 
+const hasElectronAPI = typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.selectFolder === 'function';
+
+if (!hasElectronAPI) {
+  console.warn('electronAPI is not available — running in browser/no-preload mode');
+}
+
 const container = document.getElementById('canvas-container');
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -102,57 +108,105 @@ function clearCurrentPointcloud() {
   }
 }
 
-async function loadPointcloudFromUrl(fileUrl){
-  try{
-    appendConsoleLine(`Loading point cloud: ${fileUrl}`);
-    loader.load('../outputs/pointcloud.ply', (geometry) => {
-      const hasColors = !!geometry.getAttribute('color');
-      if (!hasColors) {
-        // Optionally set a fallback color
-        geometry.setAttribute('color',
-          new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count * 3).fill(0.5), 3)
-        );
-      }
-
-      const material = new THREE.PointsMaterial({
-        size: 0.01,
-        vertexColors: true,
-        sizeAttenuation: true
-      });
-
-      const points = new THREE.Points(geometry, material);
-      clearCurrentPointcloud();
-      currentPoints = points;
-      scene.add(points);
-
-      geometry.computeBoundingBox();
-      const bb = geometry.boundingBox;
-      const center = new THREE.Vector3();
-      bb.getCenter(center);
-      controls.target.copy(center);
-      camera.position.set(center.x, center.y, center.z + (bb.getSize(new THREE.Vector3()).length() * 1.2));
-      controls.update();
-      appendConsoleLine('Point cloud loaded.');
-    });    
-  } catch (err) {
-    appendConsoleLine(`Error in loading pointcloud.ply: ${err.message}`);
+function addGeometryToScene(geometry) {
+  const hasColors = !!geometry.getAttribute('color');
+  if (!hasColors) {
+    geometry.setAttribute('color',
+      new THREE.Float32BufferAttribute(new Float32Array(geometry.getAttribute('position').count * 3).fill(0.5), 3)
+    );
   }
+
+  const material = new THREE.PointsMaterial({
+    size: 0.01,
+    vertexColors: true,
+    sizeAttenuation: true
+  });
+
+  const points = new THREE.Points(geometry, material);
+  clearCurrentPointcloud();
+  currentPoints = points;
+  scene.add(points);
+
+  geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
+  const center = new THREE.Vector3();
+  bb.getCenter(center);
+  controls.target.copy(center);
+  camera.position.set(center.x, center.y, center.z + (bb.getSize(new THREE.Vector3()).length() * 1.2));
+  controls.update();
+
+  appendConsoleLine('Point cloud loaded.');
+}
+
+// Old Url loading approach //
+// async function loadPointcloudFromUrl(fileUrl){
+//   try{
+//     appendConsoleLine(`Loading point cloud: ${fileUrl}`);
+//     loader.load('../outputs/pointcloud.ply', (geometry) => {
+//       addGeometryToScene(geometry);
+//     });    
+//   } catch (err) {
+//     appendConsoleLine(`Error in loading pointcloud.ply: ${err.message}`);
+//   }
+// }
+
+// let reloadTimer = null;
+// const RELOAD_DEBOUNCE_MS = 600;
+// function scheduleReload(fileUrl) {
+//   if (reloadTimer) clearTimeout(reloadTimer);
+//   reloadTimer = setTimeout(() => {
+//     reloadTimer = null;
+//     loadPointcloudFromUrl(fileUrl);
+//   }, RELOAD_DEBOUNCE_MS);
+// }
+
+// if (window.electronAPI && window.electronAPI.onPointCloudGenerated) {
+//   window.electronAPI.onPointCloudGenerated((fileUrl) => {
+//     appendConsoleLine(`Detected pointcloud update: ${fileUrl}`);
+//     scheduleReload(fileUrl);
+//   });
+// }
+
+/* New point cloud buffer loading */
+function loadPointcloudFromBuffer(arrayBuffer) {
+  try {
+    const geometry = loader.parse(arrayBuffer);
+    addGeometryToScene(geometry);
+  } catch (err) {
+    appendConsoleLine(`Error parsing pointcloud buffer: ${err.message || err}`);
+    console.error(err);
+  }
+}
+
+function base64ToArrayBuffer(b64) {
+  const binaryString = atob(b64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
 let reloadTimer = null;
 const RELOAD_DEBOUNCE_MS = 600;
-function scheduleReload(fileUrl) {
+function scheduleReloadFromBuffer(arrayBuffer) {
   if (reloadTimer) clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     reloadTimer = null;
-    loadPointcloudFromUrl(fileUrl);
+    loadPointcloudFromBuffer(arrayBuffer);
   }, RELOAD_DEBOUNCE_MS);
 }
 
-if (window.electronAPI && window.electronAPI.onPointCloudGenerated) {
-  window.electronAPI.onPointCloudGenerated((fileUrl) => {
-    appendConsoleLine(`Detected pointcloud update: ${fileUrl}`);
-    scheduleReload(fileUrl);
+if (window.electronAPI && window.electronAPI.onPointcloudData) {
+  window.electronAPI.onPointcloudData(({ filename, b64 }) => {
+    appendConsoleLine(`Detected pointcloud (binary) update: ${filename}`);
+    try {
+      const arrayBuffer = base64ToArrayBuffer(b64);
+      scheduleReloadFromBuffer(arrayBuffer);
+    } catch (err) {
+      appendConsoleLine(`Failed to decode pointcloud data: ${err.message}`);
+    }
   });
 }
 

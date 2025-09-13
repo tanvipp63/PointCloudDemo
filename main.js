@@ -8,118 +8,123 @@ const resourcesBase = isPackaged ? process.resourcesPath : __dirname;
 const outputsDir = path.join(app.getPath('userData'), 'outputs');
 const os = require('os');
 
-function resolveBackendRunner() {
-  // candidate exe (built by PyInstaller or placed in backend/dist)
-  const exeRel = process.platform === 'win32' ? path.join(resourcesBase, 'backend','dist','app.exe') : path.join(resourcesBase, 'backend','dist','app');
-  console.log(exeRel);
-  const exePathInRepo = path.join(resourcesBase, exeRel);                 // dev location
-  const exePathInResources = path.join(resourcesBase, exeRel);       // packaged location
-
-  // candidate venv python (dev)
-  const venvPythonWindows = path.join(resourcesBase, 'backend', 'env_backend', 'Scripts', 'python.exe');
-  const venvPythonPosix = path.join(resourcesBase, 'backend', 'env_backend', 'bin', 'python');
-  const venvPython = process.platform === 'win32' ? venvPythonWindows : venvPythonPosix;
-
-  // fallback script path (app.py)
-  const scriptPathDev = path.join(resourcesBase, 'backend', 'app.py');
-  const scriptPathResources = path.join(resourcesBase, 'backend', 'app.py'); // if you shipped raw script in resources
-
-  let chosen = { cmd: null, isPython: false, scriptPath: null };
-
-  if (isPackaged) {
-    // packaged app
-    if (fs.existsSync(exePathInResources)) {
-      chosen.cmd = exePathInResources;
-      chosen.isPython = false;
-    } else if (fs.existsSync(exePathInRepo)) {
-      chosen.cmd = exePathInRepo;
-      chosen.isPython = false;
+function debugLog(isError, ...args) {
+  console.log(...args);
+  if (mainWindow && mainWindow.webContents) {
+    if (isError){
+      mainWindow.webContents.send('python-error', args.join('\n') + '\n');
     } else {
-      // If using venv
-      const packagedVenv = process.platform === 'win32'
-        ? path.join(resourcesBase, 'backend','env_backend','Scripts','python.exe')
-        : path.join(resourcesBase, 'backend','env_backend','bin','python');
-      if (fs.existsSync(packagedVenv)) {
-        chosen.cmd = packagedVenv;
-        chosen.isPython = true;
-        chosen.scriptPath = scriptPathResources;
-      }
+      mainWindow.webContents.send('python-log', args.join(' ') + '\n');
     }
-  } else { // dev
-    if (fs.existsSync(venvPython)) {
-      chosen.cmd = venvPython;
-      chosen.isPython = true;
-      chosen.scriptPath = scriptPathDev;
-    } else if (fs.existsSync(exePathInRepo)) {
-      chosen.cmd = exePathInRepo;
-      chosen.isPython = false;
-    } else {
-      const systemPython = process.platform === 'win32' ? 'python' : 'python3';
-      chosen.cmd = systemPython;
-      chosen.isPython = true;
-      chosen.scriptPath = scriptPathDev;
+  }
+}
+
+function resolveBackendRunner() {
+  const base = app.isPackaged ? process.resourcesPath : __dirname;
+  debugLog(false, 'resolveBackendRunner base=', base, 'isPackaged=', app.isPackaged);
+
+  const exeName = process.platform === 'win32' ? 'app.exe' : 'app';
+
+  // Candidate 1: packaged native exe in extraResources -> resources/backend/dist/<exe>
+  const packagedExe = path.join(base, 'backend', 'dist', exeName);
+
+  // Candidate 2: dist exe inside dev environment (if you run --dir builds)
+  const devDistExe = path.join(__dirname, 'backend', 'dist', exeName);
+
+  // Candidate 3: venv python (posix / win)
+  const venvPython = process.platform === 'win32' ?
+    path.join(__dirname, 'backend', 'env_backend', 'Scripts', 'python.exe') :
+    path.join(__dirname, 'backend', 'env_backend', 'bin', 'python');
+
+  // Candidate 4: fallback system python3 or python
+  const systemPythonCandidates = [ '/usr/bin/python3', '/usr/bin/python', 'python3', 'python' ];
+
+  const candidates = [
+    { type: 'exe', path: packagedExe },
+    { type: 'exe', path: devDistExe },
+    { type: 'python-venv', path: venvPython },
+    ...systemPythonCandidates.map(p => ({ type: 'python-system', path: p }))
+  ];
+
+  const okCandidates = [];
+  for (const c of candidates) {
+    try {
+      const exists = fs.existsSync(c.path);
+      const modeOk = exists ? (process.platform === 'win32' ? true : (fs.statSync(c.path).mode & 0o111) !== 0) : false;
+      if (exists && (c.type.startsWith('exe') ? modeOk : true)) {
+        okCandidates.push(c);
+      }
+    } catch (e) {
+      debugLog(true, 'check error for', c.path, e && e.message);
     }
   }
 
-  return { chosen, outputsDir, resourcesBase, isPackaged };
+  if (okCandidates.length === 0) {
+    const tried = candidates.map(c => `${c.path}`).join('\n');
+    throw new Error(`No backend executable or python interpreter found. Tried:\n${tried}`);
+  }
+
+  const preferred = okCandidates.find(c => c.type === 'exe') || okCandidates[0];
+  return preferred;
+}
+
+function spawnBackendProcess(args = [], onStdout = () => {}, onStderr = () => {}) {
+  let chosen;
+  try {
+    chosen = resolveBackendRunner();
+  } catch (e) {
+    debugLog(true, e.message);
+    throw e;
+  }
+
+  debugLog(false, 'Spawning backend runner');
+  if (chosen.type === 'exe') {
+    const child = spawn(chosen.path, args, { env: process.env, stdio: ['ignore','pipe','pipe'] });
+    child.stdout.on('data', d => onStdout(d.toString()));
+    child.stderr.on('data', d => onStderr(d.toString()));
+    return child;
+  } else {
+    // python runner: script path is app.py in backend (packaged python script might not exist if using exe)
+    const script = path.join(__dirname, 'backend', 'app.py');
+    const child = spawn(chosen.path, [script, ...args], { env: process.env, stdio: ['ignore','pipe','pipe'] });
+    child.stdout.on('data', d => onStdout(d.toString()));
+    child.stderr.on('data', d => onStderr(d.toString()));
+    return child;
+  }
 }
 
 function spawnBackend(flags = []) {
-  const { chosen, outputsDir } = resolveBackendRunner();
-
-  if (!chosen.cmd) {
-    const msg = 'No backend executable or python interpreter found. Please build backend or create venv.';
-    console.error(msg);
-    if (mainWindow && mainWindow.webContents) mainWindow.webContents.send('python-error', msg);
-    return Promise.reject(new Error(msg));
-  }
-
-  try {
-    fs.mkdirSync(outputsDir, { recursive: true });
-  } catch (e) {
-    console.error('Failed to create outputs dir', e);
-  }
-
-  let cmd = chosen.cmd;
-  let args = [];
-
-  if (chosen.isPython) {
-    if (!chosen.scriptPath) {
-      const fallbackScript = path.join(__dirname, 'backend', 'app.py');
-      chosen.scriptPath = fallbackScript;
-    }
-    args = [ chosen.scriptPath, ...flags ];
-  } else {
-    args = [ ...flags ];
-  }
-
-  console.log('Spawning backend:', cmd, args);
   return new Promise((resolve, reject) => {
-    const pyProcess = spawn(cmd, args, { env: process.env });
+    try {
+      const child = spawnBackendProcess(
+        flags,
+        (data) => {
+          debugLog(false, data.trim());
+        },
+        (data) => {
+          debugLog(true, data.trim());
+        }
+      );
 
-    let output = '';
-    let error = '';
+      let out = '';
+      let err = '';
 
-    pyProcess.stdout.on('data', (data) => {
-      const s = data.toString();
-      output += s;
-      if (mainWindow && mainWindow.webContents) mainWindow.webContents.send('python-log', s);
-    });
+      if (child.stdout) child.stdout.on('data', d => out += d.toString());
+      if (child.stderr) child.stderr.on('data', d => err += d.toString());
 
-    pyProcess.stderr.on('data', (data) => {
-      const s = data.toString();
-      error += s;
-      if (mainWindow && mainWindow.webContents) mainWindow.webContents.send('python-error', s);
-    });
+      child.on('error', (e) => {
+        debugLog(true, 'child process error', e && e.message);
+        reject(e);
+      });
 
-    pyProcess.on('close', (code) => {
-      if (code === 0) resolve(output);
-      else reject(new Error(`Backend exited with code ${code}\n${error}`));
-    });
-
-    pyProcess.on('error', (err) => {
-      reject(err);
-    });
+      child.on('close', (code) => {
+        debugLog(false, 'backend exited with code', code);
+        if (code === 0) resolve(out);
+        else reject(new Error(`Backend exited ${code}\n${err}`));
+      });
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
@@ -130,7 +135,7 @@ function createWindow() {
     width: 900,
     height: 700,
     webPreferences: {
-      preload: path.join(resourcesBase, 'templates/preload.js'),
+      preload: path.join(__dirname, 'templates/preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     }
@@ -194,10 +199,28 @@ ipcMain.handle('save-video', async () => {
 const watchedFilename = 'pointcloud.ply';
 const watchedPath = path.join(outputsDir, watchedFilename);
 
+function sendPointcloudContents() {
+  try {
+    if (!mainWindow || !mainWindow.webContents) return;
+    if (!fs.existsSync(watchedPath)) {
+      mainWindow.webContents.send('pointcloud-error', 'PLY not found');
+      return;
+    }
+    // read as binary Buffer
+    const buffer = fs.readFileSync(watchedPath);
+    // convert to base64 (safe to pass over IPC)
+    const b64 = buffer.toString('base64');
+    mainWindow.webContents.send('pointcloud-data', { filename: watchedPath, b64 });
+  } catch (err) {
+    mainWindow.webContents.send('pointcloud-error', `Read failed: ${err.message}`);
+  }
+}
+
 function sendPointcloudUpdated(){
   if (!mainWindow || !mainWindow.webContents) return;
   const fileUrl = pathToFileURL(watchedPath).href;
   mainWindow.webContents.send('pointcloud-updated', fileUrl);
+  sendPointcloudContents();
 }
 
 function startWatchingOutputs() {
