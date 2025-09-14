@@ -19,6 +19,7 @@ function debugLog(isError, ...args) {
   }
 }
 
+/* Backend running spawn functions */
 function resolveBackendRunner() {
   const base = app.isPackaged ? process.resourcesPath : __dirname;
   debugLog(false, 'resolveBackendRunner base=', base, 'isPackaged=', app.isPackaged);
@@ -84,7 +85,6 @@ function spawnBackendProcess(args = [], onStdout = () => {}, onStderr = () => {}
     child.stderr.on('data', d => onStderr(d.toString()));
     return child;
   } else {
-    // python runner: script path is app.py in backend (packaged python script might not exist if using exe)
     const script = path.join(__dirname, 'backend', 'app.py');
     const child = spawn(chosen.path, [script, ...args], { env: process.env, stdio: ['ignore','pipe','pipe'] });
     child.stdout.on('data', d => onStdout(d.toString()));
@@ -168,12 +168,10 @@ ipcMain.handle('save-video', async () => {
   try {
     const srcPath = path.join(outputsDir, 'rgb.mp4');
 
-    // ensure the source file exists
     if (!fs.existsSync(srcPath)) {
       throw new Error('No video found to save (outputs/rgb.mp4 not found). Render Video first');
     }
 
-    // propose default filename in user's Downloads folder
     const defaultName = 'pointclouddemo_rgb.mp4';
     const defaultPath = path.join(app.getPath('downloads'), defaultName);
 
@@ -186,8 +184,6 @@ ipcMain.handle('save-video', async () => {
     if (canceled || !filePath) return null;
 
     await fs.promises.copyFile(srcPath, filePath);
-
-    // shell.showItemInFolder(filePath);
 
     return filePath;
   } catch (err) {
@@ -206,9 +202,7 @@ function sendPointcloudContents() {
       mainWindow.webContents.send('pointcloud-error', 'PLY not found');
       return;
     }
-    // read as binary Buffer
     const buffer = fs.readFileSync(watchedPath);
-    // convert to base64 (safe to pass over IPC)
     const b64 = buffer.toString('base64');
     mainWindow.webContents.send('pointcloud-data', { filename: watchedPath, b64 });
   } catch (err) {
@@ -265,7 +259,6 @@ app.whenReady().then(() => {
   createWindow();
   mainWindow.webContents.on('did-finish-load', () => {
     try {
-      //make outputs directory
       fs.mkdirSync(outputsDir, { recursive: true });
       mainWindow.webContents.send('python-log', `Ensured outputs dir: ${outputsDir}`);
     } catch (err) {

@@ -15,10 +15,10 @@ html, body {
 .button-group button {
   background-color: #eca2236d;
   border: 1px solid rgb(32, 31, 31);
-  color: white; /* White text */
-  padding: 10px 24px; /* Some padding */
-  cursor: pointer; /* Pointer/hand icon */
-  float: left; /* Float the buttons side by side */
+  color: white;
+  padding: 10px 24px;
+  cursor: pointer;
+  float: left;
 }
 
 #button-title{
